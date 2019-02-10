@@ -10,7 +10,7 @@ func main() {
 	e := nut.Exporter{
 		Bind: ":31515",
 		UPSC: nut.UPSClient{
-			HostIP: "10.0.0.3:3493",
+			HostIP: "10.144.1.1:3493",
 			Name:   "eaton",
 		},
 	}

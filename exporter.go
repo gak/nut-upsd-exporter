@@ -68,8 +68,8 @@ func (e *Exporter) Init() error {
 		{lookup: "outlet.powerfactor", multiple: true},
 		{lookup: "outlet.realpower", multiple: true},
 
-		{lookup: "outlet.voltage"},
-		{lookup: "outlet.frequency"},
+		{lookup: "output.voltage"},
+		{lookup: "output.frequency"},
 		{lookup: "ups.efficiency"},
 		{lookup: "ups.load"},
 		{lookup: "ups.realpower"},
@@ -118,7 +118,7 @@ func (e *Exporter) Poll() error {
 			return err
 		}
 
-		metric.gauge.Set(value)
+		metric.gauge.Set(value, )
 	}
 
 	return nil

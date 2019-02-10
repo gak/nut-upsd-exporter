@@ -49,15 +49,18 @@ func (c *UPSClient) listVars() error {
 func (c *UPSClient) parse(text string) (Results, error) {
 	r := Results{}
 
+	// VAR eaton key "value"
+
 	lines := strings.Split(text, "\n")
 	for _, s := range lines {
-		fmt.Println(s)
-		bits := strings.SplitN(s, ": ", 2)
-		if len(bits) != 2 {
+		bits := strings.SplitN(s, " ", 4)
+		if len(bits) != 4 {
 			continue
 		}
-		k := bits[0]
-		v := bits[1]
+
+		k := bits[2]
+		v := bits[3]
+		v = v[1:len(v)-1]
 
 		r[k] = v
 	}
@@ -74,7 +77,8 @@ func (c *UPSClient) listVarsResponse() (string, error) {
 			return collected, nil
 		}
 
-		collected += s
+		fmt.Println(s)
+		collected += s + "\n"
 	}
 	if err := scanner.Err(); err != nil {
 		return "", err

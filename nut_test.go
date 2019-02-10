@@ -44,20 +44,13 @@ func TestUPSClient_AllVars(t *testing.T) {
 	c := &UPSClient{}
 
 	results, err := c.parse(`
-test.1: 123
-test.2: 5.1
+VAR eaton test.1 "12 3"
 `)
 	if err != nil {
 		t.Error(err)
 	}
 
-	expected := []Result{
-		{"test.1", 123},
-		{"test.2", 5.1},
-	}
-	for idx, r := range expected {
-		if results[idx] != r {
-			t.Errorf("does not match expected")
-		}
+	if results["test.1"] != "12 3" {
+		t.Errorf("does not match expected %v", results["test.1"])
 	}
 }
