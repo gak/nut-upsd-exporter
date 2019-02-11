@@ -24,7 +24,7 @@ WORKDIR /src
 RUN go build -o nut-upsd-exporter cmd/nut-upsd-exporter/main.go
 
 # Second stage: build the container
-FROM scratch
+FROM alpine
 
 # Copy dependencies
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
@@ -36,3 +36,4 @@ COPY --from=builder /src/nut-upsd-exporter /bin/nut-upsd-exporter
 USER appuser
 EXPOSE 8080
 ENTRYPOINT ["/bin/nut-upsd-exporter"]
+
