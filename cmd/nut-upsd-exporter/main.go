@@ -2,16 +2,26 @@ package main
 
 import (
 	"fmt"
+	"github.com/alecthomas/kong"
 	"nut-upsd-exporter"
 	"time"
 )
 
+type Config struct {
+	Bind       string `env:"NUE_BIND" default:":31515"`
+	UPSDHostIP string `env:"NUE_UPSD_HOSTIP"`
+	UPSDDevice string `env:"NUE_UPSD_DEVICE"`
+}
+
 func main() {
+	config := Config{}
+	kong.Parse(&config)
+
 	e := nut.Exporter{
-		Bind: ":31515",
+		Bind: config.Bind,
 		UPSC: nut.UPSClient{
-			HostIP: "10.144.1.1:3493",
-			Name:   "eaton",
+			HostIP: config.UPSDHostIP,
+			Name:   config.UPSDDevice,
 		},
 	}
 
@@ -21,7 +31,7 @@ func main() {
 
 	go func() {
 		for {
-			fmt.Println("Polling")
+			fmt.Println("polling")
 			if err := e.Poll(); err != nil {
 				panic(err)
 			}

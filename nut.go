@@ -31,9 +31,10 @@ func (c *UPSClient) All() (Results, error) {
 		return nil, err
 	}
 
-	fmt.Println("readall")
+	fmt.Println("list vars response")
 	data, err := c.listVarsResponse()
 
+	fmt.Println("parse")
 	return c.parse(data)
 }
 
@@ -60,7 +61,8 @@ func (c *UPSClient) parse(text string) (Results, error) {
 
 		k := bits[2]
 		v := bits[3]
-		v = v[1:len(v)-1]
+		// Strip off the start and end quotes
+		v = v[1 : len(v)-1]
 
 		r[k] = v
 	}
@@ -77,7 +79,6 @@ func (c *UPSClient) listVarsResponse() (string, error) {
 			return collected, nil
 		}
 
-		fmt.Println(s)
 		collected += s + "\n"
 	}
 	if err := scanner.Err(); err != nil {

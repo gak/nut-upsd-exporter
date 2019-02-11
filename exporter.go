@@ -21,15 +21,15 @@ type TransformFunc func(string) (float64, error)
 type Metric struct {
 	lookup    string
 	key       string
-	multiple  bool
 	transform TransformFunc
-	gauge     prometheus.Gauge
+	gauge     *prometheus.GaugeVec
+	labels    []string
 }
 
 func (e *Exporter) Init() error {
 	// https://networkupstools.org/docs/user-manual.chunked/apcs01.html
 	keys := []Metric{
-		{lookup: "ups.status", key: "ups_online", transform: func(s string) (float64, error) {
+		{lookup: "ups.status", key: "online", transform: func(s string) (float64, error) {
 			bits := strings.Split(s, " ")
 			switch bits[0] {
 			case "OL":
@@ -42,7 +42,7 @@ func (e *Exporter) Init() error {
 				return 0, errors.New("Unknown ups.status state: " + s)
 			}
 		}},
-		{lookup: "ups.status", key: "ups_charging", transform: func(s string) (float64, error) {
+		{lookup: "ups.status", key: "charging", transform: func(s string) (float64, error) {
 			bits := strings.Split(s, " ")
 			switch bits[1] {
 			// Fully charged?
@@ -58,22 +58,24 @@ func (e *Exporter) Init() error {
 		{lookup: "battery.capacity", key: "battery_capacity_amp_hours"},
 		{lookup: "battery.charge", key: "battery_charge_percent"},
 		{lookup: "battery.runtime"},
+
 		{lookup: "input.bypass.frequency"},
 		{lookup: "input.bypass.voltage"},
 		{lookup: "input.frequency"},
 		{lookup: "input.voltage"},
 
-		{lookup: "outlet.current", multiple: true},
-		{lookup: "outlet.power", multiple: true},
-		{lookup: "outlet.powerfactor", multiple: true},
-		{lookup: "outlet.realpower", multiple: true},
+		{lookup: "outlet.current", key: "outlet_current", labels: []string{"outlet"}},
+		{lookup: "outlet.power", key: "outlet_power", labels: []string{"outlet"}},
+		{lookup: "outlet.powerfactor", key: "outlet_powerfactor", labels: []string{"outlet"}},
+		{lookup: "outlet.realpower", key: "outlet_realpower", labels: []string{"outlet"}},
 
 		{lookup: "output.voltage"},
 		{lookup: "output.frequency"},
-		{lookup: "ups.efficiency"},
-		{lookup: "ups.load"},
-		{lookup: "ups.realpower"},
-		{lookup: "ups.temperature"},
+
+		{lookup: "ups.efficiency", key: "efficiency"},
+		{lookup: "ups.load", key: "load"},
+		{lookup: "ups.realpower", key: "realpower"},
+		{lookup: "ups.temperature", key: "temperature"},
 	}
 
 	e.metrics = map[string]Metric{}
@@ -82,7 +84,9 @@ func (e *Exporter) Init() error {
 			m.key = strings.Replace(m.lookup, ".", "_", -1)
 		}
 
-		gauge := prometheus.NewGauge(prometheus.GaugeOpts{Name: m.key})
+		m.key = "ups_" + m.key
+
+		gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: m.key}, m.labels)
 		prometheus.MustRegister(gauge)
 		m.gauge = gauge
 
@@ -101,24 +105,31 @@ func (e *Exporter) Poll() error {
 	fmt.Println("got results")
 
 	for _, metric := range e.metrics {
-		result, ok := results[metric.lookup]
-		if !ok {
-			fmt.Println("Warning, could not find key in results", metric.lookup)
-			continue
-		}
-
-		if metric.transform == nil {
-			metric.transform = func(s string) (float64, error) {
-				return strconv.ParseFloat(s, 64)
-			}
-		}
-
-		value, err := metric.transform(result)
+		value, err := e.value(results, metric, "")
 		if err != nil {
 			return err
 		}
 
-		metric.gauge.Set(value, )
+		prefix := "outlet"
+		if strings.HasPrefix(metric.lookup, prefix) {
+			s := strings.Split(metric.lookup, ".")
+			right := s[1]
+
+			for i := 0; i < 3; i++ {
+				outlet := ""
+				if i > 0 {
+					outlet = fmt.Sprintf(".%v", i)
+				}
+				value, err := e.value(results, metric, prefix+outlet+"."+right)
+				if err != nil {
+					return err
+				}
+
+				metric.gauge.With(prometheus.Labels{"outlet": fmt.Sprintf("%v", i)}).Set(value)
+			}
+		} else {
+			metric.gauge.With(nil).Set(value)
+		}
 	}
 
 	return nil
@@ -128,4 +139,24 @@ func (e *Exporter) Listen() error {
 	http.Handle("/metrics", promhttp.Handler())
 	fmt.Println("Listening on", e.Bind)
 	return http.ListenAndServe(e.Bind, nil)
+}
+
+func (e *Exporter) value(results Results, metric Metric, lookupOverride string) (float64, error) {
+	if lookupOverride == "" {
+		lookupOverride = metric.lookup
+	}
+
+	result, ok := results[lookupOverride]
+	if !ok {
+		fmt.Println(results)
+		return 0, errors.New(fmt.Sprintf("could not find key in results %v", lookupOverride))
+	}
+
+	if metric.transform == nil {
+		metric.transform = func(s string) (float64, error) {
+			return strconv.ParseFloat(s, 64)
+		}
+	}
+
+	return metric.transform(result)
 }
