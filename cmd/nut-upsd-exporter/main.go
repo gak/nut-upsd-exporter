@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Bind       string `env:"NUE_BIND" default:":31515"`
+	Bind       string `env:"NUE_BIND" default:":8080"`
 	UPSDHostIP string `env:"NUE_UPSD_HOSTIP"`
 	UPSDDevice string `env:"NUE_UPSD_DEVICE"`
 }
